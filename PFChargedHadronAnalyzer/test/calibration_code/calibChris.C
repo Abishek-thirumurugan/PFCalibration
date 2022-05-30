@@ -36,13 +36,13 @@ bool old_logic = false;
 bool drawpT = true;
 bool drawResoFit = false;
 bool saveCanvas = true;
-char* _region_ = (char*)"EC_outside_tracker";
-//char* _region_ = (char*)"EC_within_tracker";
+//char* _region_ = (char*)"EC_outside_tracker";
+char* _region_ = (char*)"EC_within_tracker";
 //char* _region_ = (char*)"barrel";
 //char* _region_ = (char*)"Full";
 
 float _etaMin_ = 0.0;
-float _etaMax_ = 0.0;
+float _etaMax_ = 3.0;
 
 
 //threshold
@@ -2116,7 +2116,7 @@ void drawGausFit(TH2F* inHisto, TGraph& response, TGraph& resolution)
    vector<double> average;
    vector<double> rms;
    
-   TFile* file1=new TFile("projections.root","recreate");
+   TFile* file1=new TFile("projectionschi.root","recreate");
 
    
    temp->cd();//This TCanvas is only used since when we do the fit down below 
@@ -2131,6 +2131,7 @@ void drawGausFit(TH2F* inHisto, TGraph& response, TGraph& resolution)
      double x_min = -1.0, x_max = 1.0;
      if(strcmp(inHisto->GetName(),"corrEtaEndcapEcalHcal") == 0 && strcmp(_region_,"EC_outside_tracker") == 0 && false)
        x_min = -0.70;
+    
       name = "histcorhybrid";
       sprintf(num, "%i", bin);
       name += num;
@@ -2138,6 +2139,10 @@ void drawGausFit(TH2F* inHisto, TGraph& response, TGraph& resolution)
      
       ETrueBin.push_back((TH1F*)inHisto->ProjectionY(name.c_str(),bin, 
                                                      bin + 4*rebin));
+      //TH1 * h = ETrueBin.back()->GetHistogram();
+    double min1= ETrueBin.back()->GetBinCenter( ETrueBin.back()->GetMaximumBin() );      
+    //x_min = min1-0.025;
+       //x_max =min1+0.025;
       //cout <<"bin to  bin + 4*rebin: "<<bin<<" to "<<(bin + 4*rebin)<<endl;//"   "<<ETrueBin.back()->GetEntries()<<endl;
       if(ETrueBin.back()->GetEntries() > 5)
 	{
@@ -2146,7 +2151,8 @@ void drawGausFit(TH2F* inHisto, TGraph& response, TGraph& resolution)
 	  if(bin > 2) {
 
 	    gaus =new TF1("gaus","gaus",-3,3);
-	    gaus->SetParameters(500.,0.,0.2);
+	    gaus->SetParameters(500.,0.0,0.2);
+	    //if(bin<36){ gaus->SetParameters(500.,min1,1.0);}
 	    //ETrueBin.back()->Fit("gaus", "Q", "", -1.0, 1.0);
 	    ETrueBin.back()->Fit("gaus", "Q", "", x_min, x_max);
 	    //ETrueBin.back()->Fit("gaus", "Q", "", -0.7, 0.7);
@@ -2165,6 +2171,7 @@ void drawGausFit(TH2F* inHisto, TGraph& response, TGraph& resolution)
 		 
 	    //x_max = (gaus->GetParameter(1)+ 2* gaus->GetParameter(2))>1.0 ? 1.0 : (gaus->GetParameter(1)+ 2* gaus->GetParameter(2));
 	    x_max = (gaus->GetParameter(1)+ 2* gaus->GetParameter(2));
+	     
 	    ETrueBin.back()->Fit("gaus", "Q", "", x_min, x_max);
 
 	    // ETrueBin.back()->Fit("gaus", "Q", "",
@@ -2173,13 +2180,17 @@ void drawGausFit(TH2F* inHisto, TGraph& response, TGraph& resolution)
 
 	    gaus = ETrueBin.back()->GetFunction("gaus");
 
-	    x_min = gaus->GetParameter(1)- gaus->GetParameter(2);
+	    x_min = (gaus->GetParameter(1)- 1*gaus->GetParameter(2));
 	    if(strcmp(inHisto->GetName(),"corrEtaEndcapEcalHcal") == 0 && strcmp(_region_,"EC_outside_tracker") == 0 && false)
 	      x_min = (gaus->GetParameter(1) - gaus->GetParameter(2)) < -0.7 ? -0.7 : (gaus->GetParameter(1) - gaus->GetParameter(2));
 
 	    //x_max = (gaus->GetParameter(1)+ 2* gaus->GetParameter(2))>1.0 ? 1.0 : (gaus->GetParameter(1)+ 2* gaus->GetParameter(2));
-	    x_max = (gaus->GetParameter(1)+ 2* gaus->GetParameter(2));
-	    
+	    x_max = (gaus->GetParameter(1)+2* gaus->GetParameter(2));
+	    //if(bin<60){x_min =-0.025;
+	      //x_max =0.02;}
+	    //if( bin<28){x_min=-0.0175; x_max=0.02;}
+	    //if(bin>11 && bin<20){x_min=-0.0155; x_max=0.0155;}
+	     //cout<<min1<<endl;
 
 
 
@@ -2605,36 +2616,47 @@ for(unsigned bin = 1; bin < (unsigned)inHisto->GetNbinsX(); bin = bin + 1)
    
 }
 
-void drawCompare(TGraph& response1, TGraph& response2, TGraph& resolution1, TGraph& resolution2)
+void drawCompare(TGraph& response1, TGraph& response2, TGraph& response3, TGraph& resolution1,TGraph& resolution2, TGraph& resolution3)
 {
    
 
    TCanvas* Compare = new TCanvas("Compare" ,"", 1000, 500);
-   TH2F * respHisto = new TH2F("respHisto", "", 100, 0, 1000, 100, -1, 1);
-   TH2F * resoHisto = new TH2F("resoHisto", "", 100, 0, 1000, 100, 0, 1);
+   TH2F * respHisto = new TH2F("respHisto", "", 100, 0, 100, 50, -0.5, 0.5);
+   TH2F * resoHisto = new TH2F("resoHisto", "", 100, 0, 100, 50, 0, 1);
    TLegend * legend1 = new TLegend(0.75, 0.75, 0.95, 0.9);
    TLegend * legend2 = new TLegend(0.75, 0.75, 0.95, 0.9);
 
    response1.SetMarkerColor(4);
    response1.SetMarkerStyle(22);
-   response1.SetMarkerSize(0.8);
+   response1.SetMarkerSize(1.0);
 
    resolution1.SetMarkerColor(4);
    resolution1.SetMarkerStyle(22);
-   resolution1.SetMarkerSize(0.8);
+   resolution1.SetMarkerSize(1.0);
 
-   response2.SetMarkerColor(2);
+   response2.SetMarkerColor(3);
    response2.SetMarkerStyle(22);
-   response2.SetMarkerSize(0.8);
+   response2.SetMarkerSize(1.0);
 
-   resolution2.SetMarkerColor(2);
+   resolution2.SetMarkerColor(3);
    resolution2.SetMarkerStyle(22);
-   resolution2.SetMarkerSize(0.8);
+   resolution2.SetMarkerSize(1.0);
+
+    response3.SetMarkerColor(2);
+   response3.SetMarkerStyle(22);
+   response3.SetMarkerSize(1.0);
+
+     resolution3.SetMarkerColor(2);
+   resolution3.SetMarkerStyle(22);
+   resolution3.SetMarkerSize(1.0);
    
-   legend1->AddEntry(&response1, "Raw");
-   legend1->AddEntry(&response2, "Corrected");
-   legend2->AddEntry(&resolution1, "Raw");
-   legend2->AddEntry(&resolution2, "Corrected");
+ legend1->AddEntry(&response1, "raw");
+   legend2->AddEntry(&resolution1, "raw");
+   legend1->AddEntry(&response2,"energy corrected");
+   legend1->AddEntry(&response3,"eta corrected");
+   legend2->AddEntry(&resolution2,"energy corrected");
+   legend2->AddEntry(&resolution3,"eta corrected");
+   
 
    Compare->Divide(2,1);
   
@@ -2646,6 +2668,7 @@ void drawCompare(TGraph& response1, TGraph& response2, TGraph& resolution1, TGra
    respHisto->Draw();
    response1.Draw("P");
    response2.Draw("P");
+   response3.Draw("P");
    legend1->Draw();
 
    Compare->cd(2);
@@ -2656,6 +2679,7 @@ void drawCompare(TGraph& response1, TGraph& response2, TGraph& resolution1, TGra
    resoHisto->Draw();
    resolution1.Draw("P");
    resolution2.Draw("P");
+   resolution3.Draw("P");
    legend2->Draw();
 
 }
@@ -3033,6 +3057,8 @@ TH2F* corrEndcapHcal = new TH2F("corrEndcapHcal", "", 1000, 0, 1000, 150, -1.5,
                                 1.5);
 TH2F* corrEtaEndcapHcal = new TH2F("corrEtaEndcapHcal", "", 1000, 0, 1000, 150,
                                    -1.5, 1.5);
+TH2F* mlmodel= new TH2F("corrEtaEndcapHcal", "", 1000, 0, 1000, 150,
+                                   -1.5, 1.5);
 
 TH2F * rawEtaDependenceEH = new TH2F("rawEtaDependenceEH","Response vs. Eta", 75, 0.0, 3.0, 150, -1.0,1.0 );
 TH2F * corrEtaDependenceEH = new TH2F("corrEtaDependenceEH","Response vs. Eta", 75, 0.0, 3.0, 150, -1.0,1.0 );
@@ -3044,7 +3070,7 @@ TH2F * hcorrEtaDependenceH = new TH2F("hcorrEtaDependenceH","Response vs. Eta", 
 
 TH1F * trueTempHisto = new TH1F("trueTempHisto", "true", sampleRangeHigh, 0, sampleRangeHigh);
 TH1F * ecalTempHisto = new TH1F("ecalTempHisto", "ecal", sampleRangeHigh, 0, sampleRangeHigh);
-
+//TH1F * edis= new TH1F("energydistribution", "", 60, 40, 100);
 TProfile2D* corrEtaDependenceProfEH=new TProfile2D("EH","", 40, 0,100, 75, 0, 3.0);
 TProfile2D* corrEtaDependenceProfH=new TProfile2D("H","", 40, 0,100, 75, 0, 3.0);
 
@@ -3103,8 +3129,8 @@ void calibChris()
    //chain->Add("./root_files/PGun_2_500_10_6_0_pre2_UL2018.root");
    // chain->Add("./root_files/PGun_2_500_10_0_3_upgrade2018_ECAL_pfB.root");
    //  chain->Add("./home/bhumika/work/PFCalibration/for_10_0_2/calib_codes/PGun_2_500_10_0_2_upgrade2018_NO_CUT_new.root");
-   chain->Add("./root_files/PGun_Singlepion_10_6_0_UL2016.root");
-
+   chain->Add("PGun_Singlepion_10_6_0_UL2016.root");
+   //chain->Add("");
    sTree = (TTree*)chain;
    cout<<"Reading input tree..."<<endl;
    getValuesFromTree(sTree, ETrueEnergies, ecalEnergies, 
@@ -4052,9 +4078,9 @@ void calibChris()
       if( hcal == 0) continue;
       //if( etrue/cosh(eta) > 10.0) continue;
       // if( ecal > 0) continue;
-      //if(fabs(eta) < 2.5) continue; // delete me
+      if(fabs(eta) < 1.5)  // delete me
 
-      if(fabs(eta) < 1.5) //alpha beta fit range for barrel
+	//if(fabs(eta) < 1.0) //alpha beta fit range for barrel
       {     
          raw->Fill(etrue, (ecal + hcal - etrue)/etrue);
          if(ecal > 0)
@@ -4112,13 +4138,13 @@ void calibChris()
 	     correctedE = correctedE/cosh(eta);
 	   }
 
-	     if(etrue>7 && etrue<9) {
-	       for(int k=0;k<1000;k++) {
-		 float step=k/500.-0.99995;
-		 float b= step;
-		 float a = (etrue - 3.5 )/hcal - 1 -b*eta*eta;
-		 bcplot->Fill(b,a);
-	       }
+	   if(etrue>7 && etrue<9) {
+	     for(int k=0;k<1000;k++) {
+	   	 float step=k/500.-0.99995;
+	   	 float b= step;
+	   	 float a = (etrue - 3.5 )/hcal - 1 -b*eta*eta;
+	   	 bcplot->Fill(b,a);
+	     }
 	     }
 
 
@@ -4135,8 +4161,13 @@ void calibChris()
 	     corrEtaDependenceProfH->Fill(etrue, eta, (correctedEta - etrue)/etrue);
 
 	   }
-         //if(fabs(eta) < 1.0) //b, c fit range
-	 if(fabs(eta) < 1.5) //b, c fit range //shubham Mar 27
+	 	 etrue = ETrueEnergies[entry];
+     ecal = ecalEnergies[entry];
+      hcal = hcalEnergies[entry];
+      eta = abs(etas[entry]);
+      phi = phis[entry];
+	 //if(fabs(eta) < 1.0) //b, c fit range
+       if(fabs(eta) < 1.5) //b, c fit range //shubham Mar 27
          {
             rawBarrel->Fill(etrue, (ecal + hcal - etrue)/etrue);
             
@@ -4158,7 +4189,10 @@ void calibChris()
   	       rawBarrelEcalHcal->Fill(etrue, (ecal + hcal  - etrue)/etrue );
                corrBarrel->Fill(etrue, (correctedE - etrue)/etrue);
                corrBarrelEcalHcal->Fill(etrue, (correctedE - etrue)/etrue);
-               
+	       //   if(etrue>44 and etrue<52)
+	       //{
+               //edis->Fill(etrue*cosh(eta));
+	       //}
 	       // hcorrEtaDependence->Fill(eta, (correctedE - etrue)/etrue);
 
                // rawEtaDependence->Fill(eta, (ecal + hcal - etrue)/etrue);
@@ -4198,6 +4232,11 @@ void calibChris()
          }
       }
       
+        etrue = ETrueEnergies[entry];
+     ecal = ecalEnergies[entry];
+      hcal = hcalEnergies[entry];
+      eta = abs(etas[entry]);
+      phi = phis[entry];
       //if(fabs(eta) < 2.5 && fabs(eta) > 1.55) //WITHIN TRACKER alpha beta fit range for endcap 
       //if(fabs(eta) < 3.0 && fabs(eta) > 1.55) //FULL EndCap alpha beta fit range for endcap   //shubham
 	  //if(fabs(eta) < 3.0 && fabs(eta) > 2.5) //OUTSIDE TRACKER alpha beta fit range for endcap   //shubham
@@ -4277,7 +4316,12 @@ void calibChris()
 	    corrEtaDependenceProfH->Fill(etrue, eta, (correctedEta - etrue)/etrue);
 	      
          }
-         //if(fabs(eta) < 2.2) //b, c fi trange
+	 etrue = ETrueEnergies[entry];
+     ecal = ecalEnergies[entry];
+      hcal = hcalEnergies[entry];
+      eta = abs(etas[entry]);
+      phi = phis[entry];
+      //if(fabs(eta) < 2.2) //b, c fi trange
 	 if(fabs(eta) < 3.0) //b, c fi trange   //shubham
          {
             rawEndcap->Fill(etrue, (ecal + hcal - etrue)/etrue);
@@ -4359,32 +4403,36 @@ void calibChris()
    ////////////////////////////////////////////////////////////////////////////
 
    cout<<" Now Summary "<<endl;
+
+   //TFile * Ml= new TFile("ML/XgBoosttrain.root","OPEN");
+   //TH2F *mlmodel=(TH2F*)Ml->Get("pred-validd;1");
    
    //   exit(0);
    //rawBarrel->Draw("colz");
    //rawBarrelEcalHcal->Draw("colz");
    //rawBarrelHcal->Draw("colz");
+   //edis->Draw();
    
    //// raw barrel response for EH-hdarons
-   //drawGausFit(rawBarrelEcalHcal,responseRaw,resolutionRaw);
+   // drawGausFit(rawBarrelEcalHcal,responseRaw,resolutionRaw);
    //// E-corrected barrel response for EH-hdarons
-   //  drawGausFit(corrBarrelEcalHcal,responseCor,resolutionCor);
+   //drawGausFit(corrBarrelEcalHcal,responseCor,resolutionCor);
    //// Eta-corrected barrel response for EH-hdarons
    //drawGausFit(corrEtaBarrelEcalHcal, responseEta, resolutionEta);
    //// raw barrel response for H-hdarons
    //drawGausFit(rawBarrelHcal,responseRaw,resolutionRaw);
    //// E-corrected barrel response for H-hdarons
-   //   drawGausFit(corrBarrelHcal,responseCor,resolutionCor);
+   //drawGausFit(corrBarrelHcal,responseCor,resolutionCor);
    //// Eta-corrected barrel response for H-hdarons
-   //drawGausFit(corrEtaBarrelHcal,responseCor,resolutionCor);
+   //   drawGausFit(corrEtaBarrelHcal,responseEta,resolutionEta);
 
    //// raw endcap response for EH-hdarons 
    //rawEndcapEcalHcal->Draw("colz");
-   //drawGausFit(rawEndcapEcalHcal,responseRaw,resolutionRaw);
+    drawGausFit(rawEndcapEcalHcal,responseRaw,resolutionRaw);
    //// E-corrected endcap response for EH-hdarons
-   //drawGausFit(corrEndcapEcalHcal,responseCor,resolutionCor);
+   drawGausFit(corrEndcapEcalHcal,responseCor,resolutionCor);
    //// Eta-corrected endcap response for EH-hdarons
-   drawGausFit(corrEtaEndcapEcalHcal,responseCor,resolutionCor);
+    drawGausFit(corrEtaEndcapEcalHcal,responseEta,resolutionEta);
    //corrEtaEndcapEcalHcal->Draw("colz");
    //// raw endcap response for H-hdarons
    // rawEndcapHcal->Draw("colz");
@@ -4399,6 +4447,7 @@ void calibChris()
    // something for overall
    //drawGausFit(rawBarrel,responseRaw,resolutionRaw);
 
+   //drawGausFit(mlmodel,responseRaw,resolutionRaw); 
 
    //drawEtaDependence(rawEtaDependenceEH, responseEtaEtaEH);
    //drawEtaDependence(hcorrEtaDependenceEH, responseEtaHCorrEtaEH);
@@ -4409,8 +4458,7 @@ void calibChris()
    //drawEtaDependence(corrEtaDependenceH, responseEtaEtaH);
    
    //drawGausFit(corrEta,response, resolution);
-   //drawCompare(responseRaw, response, resolutionRaw, resolution);
-
+   drawCompare(responseRaw,responseCor, responseEta,resolutionRaw, resolutionCor, resolutionEta);
 
 
 
